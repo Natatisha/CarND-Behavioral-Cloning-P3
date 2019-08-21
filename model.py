@@ -17,16 +17,24 @@ IMG_SHAPE = (160, 320, 3)
 
 
 def load_samples(folder_path, file_name):
+    # load data
     data = pd.read_csv(folder_path + file_name)
+    # we want to use right and left images, so let's stack all the data into one array
     images = pd.concat([data['center'], data['left'], data['right']])
 
+    # get steering values
     steering_center = data['steering']
+    # tuned correction angle for right and left images
     correction = 0.24
     steering_left = steering_center + correction
     steering_right = steering_center - correction
+
+    # stack all measurements into one array
     measurements = pd.concat([steering_center, steering_left, steering_right])
 
     print("Loaded {} samples".format(len(images)))
+
+    # as result we have 2D array with two columns: images, measurements
     return pd.concat([images, measurements], axis=1)
 
 
@@ -41,12 +49,13 @@ def generator(samples, batch_size=32, folder_path="./data/"):
             angles = []
             for i, batch_sample in batch_samples.iterrows():
                 name = (folder_path + "IMG/" + os.path.basename(batch_sample[0]))
+                # read image from the path
                 image = mpimg.imread(name)
                 angle = float(batch_sample['steering'])
+                # divide data into X and y values, where angles = labels, images = features
                 images.append(image)
                 angles.append(angle)
 
-            # trim image to only see section with road
             X_train = np.array(images, dtype=np.float32)
             y_train = np.array(angles, dtype=np.float32)
             yield shuffle(X_train, y_train)
@@ -76,9 +85,9 @@ def build_network():
     return model
 
 
-def plot_learning_curve():
-    plt.plot(history.history['loss'])
-    plt.plot(history.history['val_loss'])
+def plot_learning_curve(loss, validation_loss):
+    plt.plot(loss)
+    plt.plot(validation_loss)
     plt.title('model loss')
     plt.ylabel('loss')
     plt.xlabel('epoch')
@@ -91,7 +100,7 @@ if __name__ == '__main__':
     batch_size = 32
 
     samples = load_samples("./data/", "driving_log.csv")
-    train_samples, validation_samples = train_test_split(samples, test_size=0.2, shuffle=True)
+    train_samples, validation_samples = train_test_split(samples, test_size=0.2)
     print(train_samples.shape)
     print(validation_samples.shape)
 
@@ -111,4 +120,4 @@ if __name__ == '__main__':
                                   validation_data=validation_generator, validation_steps=steps_valid,
                                   epochs=epochs, callbacks=[checkpoint, es])
 
-    plot_learning_curve()
+    plot_learning_curve(history.history['loss'], history.history['val_loss'])
